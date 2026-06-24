@@ -26,7 +26,8 @@ def main(page: ft.Page):
             assets_dir = os.path.join(base_dir, "assets")
             
             if not os.path.exists(assets_dir):
-                return
+            # 这一行是“强制报错”，它会直接终止程序并把错误信息展示在手机红屏上
+                raise Exception(f"【DEBUG】找不到 assets 文件夹！搜索路径: {assets_dir}")
             
             for file in os.listdir(assets_dir):
                 if file.endswith(".docx"):
