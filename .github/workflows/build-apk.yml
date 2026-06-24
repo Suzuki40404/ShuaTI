@@ -28,11 +28,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install flet python-docx
 
-      - name: 🚀 开始打包 APK (自动确认并静默安装SDK)
+      - name: 🚀 开始打包 APK (自动进入文件夹打包)
+        working-directory: ./mymobileapp
         run: yes | flet build apk
 
       - name: 📤 上传最终安装包
         uses: actions/upload-artifact@v4
         with:
           name: TiKu-Shua-APK
-          path: build/apk/**/*.apk
+          path: mymobileapp/build/apk/**/*.apk
