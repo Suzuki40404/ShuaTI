@@ -1,0 +1,39 @@
+name: Deploy PWA Web App
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+# 赋予自动上传网页代码的权限
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 下载代码
+        uses: actions/checkout@v4
+
+      - name: 🐍 配置 Python 环境
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 📦 安装 Flet
+        run: |
+          python -m pip install --upgrade pip
+          pip install flet
+
+      - name: 🌐 编译为 PWA 网页应用
+        working-directory: ./mymobileapp
+        # 注意这里的 --base-url /ShuaTI/ 非常关键，它是你的仓库名，否则会导致白屏
+        run: |
+          yes | flet build web --base-url /ShuaTI/
+
+      - name: 📤 部署到 GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./mymobileapp/build/web
