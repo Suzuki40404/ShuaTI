@@ -290,11 +290,11 @@ def main(page: ft.Page):
 
         page.navigation_bar = ft.NavigationBar(
             destinations=[
-                ft.NavigationDestination(icon="menu_book", label="全局"),
-                ft.NavigationDestination(icon="folder", label="章节"),
-                ft.NavigationDestination(icon="search", label="检索"),
-                ft.NavigationDestination(icon="star", label="收藏"),
-                ft.NavigationDestination(icon="quiz", label="模拟考"),
+                ft.NavigationBarDestination(icon="menu_book", label="全局"),
+                ft.NavigationBarDestination(icon="folder", label="章节"),
+                ft.NavigationBarDestination(icon="search", label="检索"),
+                ft.NavigationBarDestination(icon="star", label="收藏"),
+                ft.NavigationBarDestination(icon="quiz", label="模拟考"),
             ],
             on_change=on_nav_change
         )
