@@ -2,7 +2,7 @@ import flet as ft
 import re
 import random
 import traceback
-import data  # 👈 核心：直接把我们刚才做的题库当成代码导入！
+import data  
 
 def main(page: ft.Page):
     try:
@@ -15,9 +15,7 @@ def main(page: ft.Page):
         favorites = {}
         exam_state = {"paper": [], "config": {}, "answers": {}, "marked": {}}
 
-        # --- 核心修改：降维打击，不读硬盘，直接从内存切分文本！ ---
         def load_built_in_banks():
-            # 直接调用 data.py 里的 RAW_TEXT 变量，100% 绝不报错
             text_lines = [line.strip() for line in data.RAW_TEXT.splitlines() if line.strip()]
             
             current_chap = "未分类导言"
@@ -59,30 +57,32 @@ def main(page: ft.Page):
 
         load_built_in_banks()
 
+        # --- 彻底告别 ft.Colors，全部替换为纯字符串！ ---
         page.appbar = ft.AppBar(
             title=ft.Text("📚 题库刷", weight=ft.FontWeight.BOLD),
             center_title=True,
-            bgcolor=ft.Colors.SURFACE_VARIANT,
+            bgcolor="surfaceVariant", 
         )
 
         content_area = ft.Column(expand=True, scroll=ft.ScrollMode.AUTO)
 
         def create_question_card(q):
             is_fav = q['id'] in favorites
+            # 彻底告别 ft.Icons，用纯字符串 "star"
             fav_btn = ft.IconButton(
-                icon=ft.Icons.STAR if is_fav else ft.Icons.STAR_BORDER,
-                icon_color=ft.Colors.AMBER if is_fav else ft.Colors.GREY,
+                icon="star" if is_fav else "star_border",
+                icon_color="amber" if is_fav else "grey",
                 on_click=lambda e, q=q: toggle_fav(e, q)
             )
             
             def toggle_fav(e, q):
                 if q['id'] in favorites: del favorites[q['id']]
                 else: favorites[q['id']] = q
-                e.control.icon = ft.Icons.STAR if q['id'] in favorites else ft.Icons.STAR_BORDER
-                e.control.icon_color = ft.Colors.AMBER if q['id'] in favorites else ft.Colors.GREY
+                e.control.icon = "star" if q['id'] in favorites else "star_border"
+                e.control.icon_color = "amber" if q['id'] in favorites else "grey"
                 page.update()
 
-            ans_text = ft.Text(q['answer'], color=ft.Colors.GREEN, visible=False, weight=ft.FontWeight.BOLD)
+            ans_text = ft.Text(q['answer'], color="green", visible=False, weight=ft.FontWeight.BOLD)
             def toggle_ans(e):
                 ans_text.visible = not ans_text.visible
                 page.update()
@@ -93,7 +93,7 @@ def main(page: ft.Page):
                 content=ft.Container(
                     padding=15,
                     content=ft.Column([
-                        ft.Text(f"[{q['chapter']}]", size=12, color=ft.Colors.GREY),
+                        ft.Text(f"[{q['chapter']}]", size=12, color="grey"),
                         ft.Text(q['question'], weight=ft.FontWeight.BOLD, size=16),
                         options_col,
                         ft.Row([fav_btn, ft.TextButton("👁️ 查看答案", on_click=toggle_ans)], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
@@ -173,7 +173,7 @@ def main(page: ft.Page):
                     for t in db['all']: results.extend([q for q in db['all'][t] if match_kw(q)])
                 else:
                     for t in db['chapters'][scope]: results.extend([q for q in db['chapters'][scope][t] if match_kw(q)])
-                if not results: results_list.controls.append(ft.Text("没有找到匹配的题目~", color=ft.Colors.GREY))
+                if not results: results_list.controls.append(ft.Text("没有找到匹配的题目~", color="grey"))
                 else:
                     for q in results: results_list.controls.append(create_question_card(q))
                 page.update()
@@ -187,7 +187,7 @@ def main(page: ft.Page):
             if not favorites: content_area.controls.append(ft.Container(ft.Text("收藏本为空，快去刷题吧！", size=16), alignment=ft.alignment.center, padding=50))
             else:
                 list_view = ft.ListView(expand=True, padding=10)
-                list_view.controls.append(ft.Text(f"当前共收藏 {len(favorites)} 题", weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE))
+                list_view.controls.append(ft.Text(f"当前共收藏 {len(favorites)} 题", weight=ft.FontWeight.BOLD, color="blue"))
                 for q in list(favorites.values()): list_view.controls.append(create_question_card(q))
                 content_area.controls.append(list_view)
             page.update()
@@ -225,7 +225,7 @@ def main(page: ft.Page):
             content_area.controls.clear()
             paper = exam_state['paper']
             exam_list = ft.ListView(expand=True, padding=15, spacing=20)
-            exam_list.controls.append(ft.Text("📝 答题区", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE))
+            exam_list.controls.append(ft.Text("📝 答题区", size=20, weight=ft.FontWeight.BOLD, color="blue"))
             
             for idx, q in enumerate(paper):
                 q_id, score = q['id'], exam_state['config'][q['type']]['score']
@@ -244,7 +244,7 @@ def main(page: ft.Page):
                     
                 exam_list.controls.append(ft.Card(content=ft.Container(padding=15, content=q_col), elevation=1))
 
-            exam_list.controls.append(ft.ElevatedButton("📥 确认交卷", on_click=lambda e: show_exam_result(), height=50, bgcolor=ft.Colors.ERROR, color=ft.Colors.WHITE))
+            exam_list.controls.append(ft.ElevatedButton("📥 确认交卷", on_click=lambda e: show_exam_result(), height=50, bgcolor="red", color="white"))
             content_area.controls.append(exam_list)
             page.update()
 
@@ -269,12 +269,12 @@ def main(page: ft.Page):
                 else: total_sub += score_per
 
             res_list = ft.ListView(expand=True, padding=15, spacing=15)
-            res_list.controls.append(ft.Card(color=ft.Colors.BLUE_700, content=ft.Container(padding=20, content=ft.Column([ft.Text("🏁 考 试 结 束", size=24, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE), ft.Text(f"客观题得分: {obj_score:g} / {total_obj:g}", size=18, color=ft.Colors.WHITE), ft.Text(f"主观题满分: {total_sub:g}", size=18, color=ft.Colors.WHITE70)]))))
+            res_list.controls.append(ft.Card(color="blue", content=ft.Container(padding=20, content=ft.Column([ft.Text("🏁 考 试 结 束", size=24, weight=ft.FontWeight.BOLD, color="white"), ft.Text(f"客观题得分: {obj_score:g} / {total_obj:g}", size=18, color="white"), ft.Text(f"主观题满分: {total_sub:g}", size=18, color="white")]))))
             
             for idx, q in enumerate(paper):
                 user_ans = exam_state['answers'].get(q['id'], "")
                 user_str = " | ".join(sorted(user_ans)) if isinstance(user_ans, list) else user_ans
-                res_list.controls.append(ft.Card(content=ft.Container(padding=15, content=ft.Column([ft.Text(f"第 {idx+1} 题 ({q['type']})", weight=ft.FontWeight.BOLD), ft.Text(q['question']), ft.Text(f"📝 你的作答: {user_str if user_str else '未作答'}", color=ft.Colors.BLUE), ft.Text(f"✅ {q['answer']}", color=ft.Colors.GREEN, weight=ft.FontWeight.BOLD)]))))
+                res_list.controls.append(ft.Card(content=ft.Container(padding=15, content=ft.Column([ft.Text(f"第 {idx+1} 题 ({q['type']})", weight=ft.FontWeight.BOLD), ft.Text(q['question']), ft.Text(f"📝 你的作答: {user_str if user_str else '未作答'}", color="blue"), ft.Text(f"✅ {q['answer']}", color="green", weight=ft.FontWeight.BOLD)]))))
                 
             res_list.controls.append(ft.ElevatedButton("🔙 返回重新生成", on_click=lambda e: show_exam_setup(), height=50))
             content_area.controls.append(res_list)
@@ -290,11 +290,11 @@ def main(page: ft.Page):
 
         page.navigation_bar = ft.NavigationBar(
             destinations=[
-                ft.NavigationDestination(icon=ft.Icons.MENU_BOOK, label="全局"),
-                ft.NavigationDestination(icon=ft.Icons.FOLDER, label="章节"),
-                ft.NavigationDestination(icon=ft.Icons.SEARCH, label="检索"),
-                ft.NavigationDestination(icon=ft.Icons.STAR, label="收藏"),
-                ft.NavigationDestination(icon=ft.Icons.QUIZ, label="模拟考"),
+                ft.NavigationDestination(icon="menu_book", label="全局"),
+                ft.NavigationDestination(icon="folder", label="章节"),
+                ft.NavigationDestination(icon="search", label="检索"),
+                ft.NavigationDestination(icon="star", label="收藏"),
+                ft.NavigationDestination(icon="quiz", label="模拟考"),
             ],
             on_change=on_nav_change
         )
@@ -305,7 +305,7 @@ def main(page: ft.Page):
     except Exception as e:
         error_details = traceback.format_exc()
         page.controls.clear()
-        page.add(ft.AppBar(title=ft.Text("⚠️ 启动保护模式", color=ft.Colors.WHITE), bgcolor=ft.Colors.RED), ft.Container(padding=20, content=ft.Column([ft.Text("糟糕！应用初始化遇到错误：", weight=ft.FontWeight.BOLD, size=18), ft.Container(padding=10, bgcolor=ft.Colors.GREY_200, border_radius=5, content=ft.Text(error_details, size=12, selectable=True, color=ft.Colors.BLACK))], scroll=ft.ScrollMode.AUTO)))
+        page.add(ft.AppBar(title=ft.Text("⚠️ 启动保护模式", color="white"), bgcolor="red"), ft.Container(padding=20, content=ft.Column([ft.Text("糟糕！应用初始化遇到错误：", weight=ft.FontWeight.BOLD, size=18), ft.Container(padding=10, bgcolor="#eeeeee", border_radius=5, content=ft.Text(error_details, size=12, selectable=True, color="black"))], scroll=ft.ScrollMode.AUTO)))
     page.update()
 
-ft.app(target=main) # 👈 连 assets 都不需要声明了！
+ft.app(target=main)
