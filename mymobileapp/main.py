@@ -40,11 +40,10 @@ def main(page: ft.Page):
                         db['chapters'][current_chap] = {'单选题': [], '多选题': [], '填空题': [], '判断题': []}
                     continue
 
-                # 题型判断（安全平替正则表达式）
+                # 题型判断
                 is_question_line = False
                 detected_type = ""
                 
-                # 检查是否以数字加点开头
                 dot_idx = line.find('.')
                 if dot_idx == -1:
                     dot_idx = line.find('、')
@@ -64,7 +63,6 @@ def main(page: ft.Page):
                         detected_type = "判断题"
 
                 if is_question_line:
-                    # 保存上一题
                     if current_q and q_type:
                         if current_chap not in db['chapters']: 
                             db['chapters'][current_chap] = {'单选题': [], '多选题': [], '填空题': [], '判断题': []}
@@ -94,7 +92,6 @@ def main(page: ft.Page):
                         if not current_q['options'] and not current_q['answer']: 
                             current_q['question'] += "\n" + line
                             
-            # 保存最后一题
             if current_q and q_type:
                 if current_chap not in db['chapters']: 
                     db['chapters'][current_chap] = {'单选题': [], '多选题': [], '填空题': [], '判断题': []}
@@ -144,7 +141,8 @@ def main(page: ft.Page):
                         ans_text
                     ])
                 ),
-                margin=ft.margin.symmetric(vertical=5, horizontal=10),
+                # 核心修复：纯数字边距，彻底消灭 AttributeError
+                margin=10,
                 elevation=2
             )
 
@@ -238,7 +236,8 @@ def main(page: ft.Page):
                 page.update()
                 
             search_btn = ft.ElevatedButton("检索", on_click=execute_search)
-            content_area.controls.append(ft.Column([ft.Container(ft.Row([search_input, scope_dropdown]), padding=10), ft.Container(search_btn, padding=ft.padding.symmetric(horizontal=10)), ft.Divider(), results_list], expand=True))
+            # 核心修复：将 ft.padding 换成纯数字 10
+            content_area.controls.append(ft.Column([ft.Container(ft.Row([search_input, scope_dropdown]), padding=10), ft.Container(search_btn, padding=10), ft.Divider(), results_list], expand=True))
             page.update()
 
         def show_favorites():
