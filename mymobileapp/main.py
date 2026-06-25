@@ -6,11 +6,11 @@ import data
 def main(page: ft.Page):
     try:
         page.title = "题库刷"
-        page.theme_mode = ft.ThemeMode.SYSTEM
-        page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
+        # 核心替换：全部采用纯字符串，免疫一切版本报错
+        page.theme_mode = "system"
+        page.horizontal_alignment = "center"
         page.padding = 0
 
-        # 初始化数据库结构
         db = {'chapters': {}, 'all': {'单选题': [], '多选题': [], '填空题': [], '判断题': []}}
         favorites = {}
         exam_state = {"paper": [], "config": {}, "answers": {}, "marked": {}}
@@ -27,7 +27,6 @@ def main(page: ft.Page):
             tags = ["导论", "第一章", "第二章", "第三章", "第四章", "第五章", "第六章", "第七章", "第八章", "第九章", "第十章", "第十一章", "第十二章"]
 
             for line in text_lines:
-                # 章节判断
                 is_chap = False
                 if line in tags:
                     is_chap = True
@@ -40,7 +39,6 @@ def main(page: ft.Page):
                         db['chapters'][current_chap] = {'单选题': [], '多选题': [], '填空题': [], '判断题': []}
                     continue
 
-                # 题型判断
                 is_question_line = False
                 detected_type = ""
                 
@@ -101,12 +99,12 @@ def main(page: ft.Page):
         load_built_in_banks()
 
         page.appbar = ft.AppBar(
-            title=ft.Text("📚 题库刷", weight=ft.FontWeight.BOLD),
+            title=ft.Text("📚 题库刷", weight="bold"),
             center_title=True,
             bgcolor="surfaceVariant", 
         )
 
-        content_area = ft.Column(expand=True, scroll=ft.ScrollMode.AUTO)
+        content_area = ft.Column(expand=True, scroll="auto")
 
         def create_question_card(q):
             is_fav = q['id'] in favorites
@@ -123,7 +121,7 @@ def main(page: ft.Page):
                 e.control.icon_color = "amber" if q['id'] in favorites else "grey"
                 page.update()
 
-            ans_text = ft.Text(q['answer'], color="green", visible=False, weight=ft.FontWeight.BOLD)
+            ans_text = ft.Text(q['answer'], color="green", visible=False, weight="bold")
             def toggle_ans(e):
                 ans_text.visible = not ans_text.visible
                 page.update()
@@ -135,20 +133,19 @@ def main(page: ft.Page):
                     padding=15,
                     content=ft.Column([
                         ft.Text("[" + q['chapter'] + "]", size=12, color="grey"),
-                        ft.Text(q['question'], weight=ft.FontWeight.BOLD, size=16),
+                        ft.Text(q['question'], weight="bold", size=16),
                         options_col,
-                        ft.Row([fav_btn, ft.TextButton("👁️ 查看答案", on_click=toggle_ans)], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                        ft.Row([fav_btn, ft.TextButton("👁️ 查看答案", on_click=toggle_ans)], alignment="spaceBetween"),
                         ans_text
                     ])
                 ),
-                # 核心修复：纯数字边距，彻底消灭 AttributeError
                 margin=10,
                 elevation=2
             )
 
         def show_empty_warning():
             content_area.controls.clear()
-            content_area.controls.append(ft.Container(ft.Text("题库为空，未读取到题目！"), alignment=ft.alignment.center, padding=50))
+            content_area.controls.append(ft.Row([ft.Text("题库为空，未读取到题目！")], alignment="center"))
             page.update()
 
         def show_global_bank():
@@ -196,7 +193,7 @@ def main(page: ft.Page):
             chap_dropdown.on_change = update_chapter_tabs
             update_chapter_tabs()
             
-            content_area.controls.append(ft.Column([ft.Container(chap_dropdown, padding=10, alignment=ft.alignment.center), tabs_container], expand=True))
+            content_area.controls.append(ft.Column([ft.Row([chap_dropdown], alignment="center"), tabs_container], expand=True))
             page.update()
 
         def show_search():
@@ -236,17 +233,16 @@ def main(page: ft.Page):
                 page.update()
                 
             search_btn = ft.ElevatedButton("检索", on_click=execute_search)
-            # 核心修复：将 ft.padding 换成纯数字 10
             content_area.controls.append(ft.Column([ft.Container(ft.Row([search_input, scope_dropdown]), padding=10), ft.Container(search_btn, padding=10), ft.Divider(), results_list], expand=True))
             page.update()
 
         def show_favorites():
             content_area.controls.clear()
             if not favorites: 
-                content_area.controls.append(ft.Container(ft.Text("收藏本为空，快去刷题吧！", size=16), alignment=ft.alignment.center, padding=50))
+                content_area.controls.append(ft.Row([ft.Text("收藏本为空，快去刷题吧！", size=16)], alignment="center"))
             else:
                 list_view = ft.ListView(expand=True, padding=10)
-                list_view.controls.append(ft.Text("当前共收藏 " + str(len(favorites)) + " 题", weight=ft.FontWeight.BOLD, color="blue"))
+                list_view.controls.append(ft.Text("当前共收藏 " + str(len(favorites)) + " 题", weight="bold", color="blue"))
                 for q in list(favorites.values()): list_view.controls.append(create_question_card(q))
                 content_area.controls.append(list_view)
             page.update()
@@ -255,9 +251,9 @@ def main(page: ft.Page):
             if not (db['all']['单选题'] or db['all']['多选题'] or db['all']['判断题'] or db['all']['填空题']): 
                 return show_empty_warning()
             content_area.controls.clear()
-            setup_col = ft.Column(spacing=20, padding=20, scroll=ft.ScrollMode.AUTO, expand=True)
-            setup_col.controls.append(ft.Text("⚙️ 考前参数设置", size=20, weight=ft.FontWeight.BOLD))
-            time_input = ft.TextField(label="考试时长(分钟)", value="60", keyboard_type=ft.KeyboardType.NUMBER)
+            setup_col = ft.Column(spacing=20, padding=20, scroll="auto", expand=True)
+            setup_col.controls.append(ft.Text("⚙️ 考前参数设置", size=20, weight="bold"))
+            time_input = ft.TextField(label="考试时长(分钟)", value="60", keyboard_type="number")
             setup_col.controls.append(time_input)
             
             inputs = {}
@@ -266,9 +262,9 @@ def main(page: ft.Page):
                 default_cnt = 10 if max_q > 10 else max_q
                 row = ft.Row([
                     ft.Text(t + "(余" + str(max_q) + ")", width=90), 
-                    ft.TextField(label="数量", value=str(default_cnt), width=60, keyboard_type=ft.KeyboardType.NUMBER), 
-                    ft.TextField(label="分值", value="2", width=60, keyboard_type=ft.KeyboardType.NUMBER)
-                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
+                    ft.TextField(label="数量", value=str(default_cnt), width=60, keyboard_type="number"), 
+                    ft.TextField(label="分值", value="2", width=60, keyboard_type="number")
+                ], alignment="spaceBetween")
                 setup_col.controls.append(row)
                 inputs[t] = row
 
@@ -307,13 +303,13 @@ def main(page: ft.Page):
             content_area.controls.clear()
             paper = exam_state['paper']
             exam_list = ft.ListView(expand=True, padding=15, spacing=20)
-            exam_list.controls.append(ft.Text("📝 答题区", size=20, weight=ft.FontWeight.BOLD, color="blue"))
+            exam_list.controls.append(ft.Text("📝 答题区", size=20, weight="bold", color="blue"))
             
             for idx, q in enumerate(paper):
                 q_id = q['id']
                 score = exam_state['config'][q['type']]['score']
                 q_col = ft.Column([
-                    ft.Text("第 " + str(idx+1) + " 题 (" + q['type'] + " - " + str(score) + "分)", weight=ft.FontWeight.BOLD), 
+                    ft.Text("第 " + str(idx+1) + " 题 (" + q['type'] + " - " + str(score) + "分)", weight="bold"), 
                     ft.Text(q['question'], size=16)
                 ])
                 
@@ -388,7 +384,7 @@ def main(page: ft.Page):
 
             res_list = ft.ListView(expand=True, padding=15, spacing=15)
             res_list.controls.append(ft.Card(color="blue", content=ft.Container(padding=20, content=ft.Column([
-                ft.Text("🏁 考 试 结 束", size=24, weight=ft.FontWeight.BOLD, color="white"), 
+                ft.Text("🏁 考 试 结 束", size=24, weight="bold", color="white"), 
                 ft.Text("客观题得分: " + str(obj_score) + " / " + str(total_obj), size=18, color="white"), 
                 ft.Text("主观题满分: " + str(total_sub), size=18, color="white")
             ]))))
@@ -402,10 +398,10 @@ def main(page: ft.Page):
                     user_str = user_ans
                     
                 res_list.controls.append(ft.Card(content=ft.Container(padding=15, content=ft.Column([
-                    ft.Text("第 " + str(idx+1) + " 题 (" + q['type'] + ")", weight=ft.FontWeight.BOLD), 
+                    ft.Text("第 " + str(idx+1) + " 题 (" + q['type'] + ")", weight="bold"), 
                     ft.Text(q['question']), 
                     ft.Text("📝 你的作答: " + (user_str if user_str else '未作答'), color="blue"), 
-                    ft.Text("✅ " + q['answer'], color="green", weight=ft.FontWeight.BOLD)
+                    ft.Text("✅ " + q['answer'], color="green", weight="bold")
                 ]))))
                 
             res_list.controls.append(ft.ElevatedButton("🔙 返回重新生成", on_click=lambda e: show_exam_setup(), height=50))
@@ -437,7 +433,7 @@ def main(page: ft.Page):
     except Exception as e:
         error_details = traceback.format_exc()
         page.controls.clear()
-        page.add(ft.AppBar(title=ft.Text("⚠️ 启动保护模式", color="white"), bgcolor="red"), ft.Container(padding=20, content=ft.Column([ft.Text("糟糕！应用初始化遇到错误：", weight=ft.FontWeight.BOLD, size=18), ft.Container(padding=10, bgcolor="#eeeeee", border_radius=5, content=ft.Text(error_details, size=12, selectable=True, color="black"))], scroll=ft.ScrollMode.AUTO)))
+        page.add(ft.AppBar(title=ft.Text("⚠️ 启动保护模式", color="white"), bgcolor="red"), ft.Container(padding=20, content=ft.Column([ft.Text("糟糕！应用初始化遇到错误：", weight="bold", size=18), ft.Container(padding=10, bgcolor="#eeeeee", border_radius=5, content=ft.Text(error_details, size=12, selectable=True, color="black"))], scroll="auto")))
     page.update()
 
 ft.app(target=main)
