@@ -222,4 +222,223 @@ def main(page: ft.Page):
                         opt_str += o
                     return (kw in q['question']) or (kw in opt_str)
                     
-                if scope == "
+                if scope == "全部章节":
+                    for t in db['all']: 
+                        for q in db['all'][t]:
+                            if match_kw(q): results.append(q)
+                else:
+                    for t in db['chapters'][scope]: 
+                        for q in db['chapters'][scope][t]:
+                            if match_kw(q): results.append(q)
+                            
+                if not results: 
+                    results_list.controls.append(ft.Text("没有找到匹配的题目~", color="grey"))
+                else:
+                    for q in results: results_list.controls.append(create_question_card(q))
+                page.update()
+                
+            search_btn = ft.ElevatedButton("检索", on_click=execute_search)
+            content_area.controls.append(ft.Column([ft.Container(ft.Row([search_input, scope_dropdown]), padding=10), ft.Container(search_btn, padding=ft.padding.symmetric(horizontal=10)), ft.Divider(), results_list], expand=True))
+            page.update()
+
+        def show_favorites():
+            content_area.controls.clear()
+            if not favorites: 
+                content_area.controls.append(ft.Container(ft.Text("收藏本为空，快去刷题吧！", size=16), alignment=ft.alignment.center, padding=50))
+            else:
+                list_view = ft.ListView(expand=True, padding=10)
+                list_view.controls.append(ft.Text("当前共收藏 " + str(len(favorites)) + " 题", weight=ft.FontWeight.BOLD, color="blue"))
+                for q in list(favorites.values()): list_view.controls.append(create_question_card(q))
+                content_area.controls.append(list_view)
+            page.update()
+
+        def show_exam_setup():
+            if not (db['all']['单选题'] or db['all']['多选题'] or db['all']['判断题'] or db['all']['填空题']): 
+                return show_empty_warning()
+            content_area.controls.clear()
+            setup_col = ft.Column(spacing=20, padding=20, scroll=ft.ScrollMode.AUTO, expand=True)
+            setup_col.controls.append(ft.Text("⚙️ 考前参数设置", size=20, weight=ft.FontWeight.BOLD))
+            time_input = ft.TextField(label="考试时长(分钟)", value="60", keyboard_type=ft.KeyboardType.NUMBER)
+            setup_col.controls.append(time_input)
+            
+            inputs = {}
+            for t in ["单选题", "多选题", "填空题", "判断题"]:
+                max_q = len(db['all'][t])
+                default_cnt = 10 if max_q > 10 else max_q
+                row = ft.Row([
+                    ft.Text(t + "(余" + str(max_q) + ")", width=90), 
+                    ft.TextField(label="数量", value=str(default_cnt), width=60, keyboard_type=ft.KeyboardType.NUMBER), 
+                    ft.TextField(label="分值", value="2", width=60, keyboard_type=ft.KeyboardType.NUMBER)
+                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
+                setup_col.controls.append(row)
+                inputs[t] = row
+
+            def start_exam(e):
+                paper, configs = [], {}
+                for t, row in inputs.items():
+                    cnt = int(row.controls[1].value)
+                    score = float(row.controls[2].value)
+                    configs[t] = {'score': score}
+                    
+                    actual_max = len(db['all'][t])
+                    if cnt > actual_max:
+                        cnt = actual_max
+                        
+                    paper.extend(random.sample(db['all'][t], cnt))
+                    
+                if not paper: return
+                
+                init_answers = {}
+                for q in paper:
+                    if q['type'] == '多选题':
+                        init_answers[q['id']] = []
+                    else:
+                        init_answers[q['id']] = ""
+                        
+                exam_state['paper'] = paper
+                exam_state['config'] = configs
+                exam_state['answers'] = init_answers
+                show_exam_running()
+
+            setup_col.controls.append(ft.ElevatedButton("🚀 生成试卷作答", on_click=start_exam, height=50))
+            content_area.controls.append(setup_col)
+            page.update()
+
+        def show_exam_running():
+            content_area.controls.clear()
+            paper = exam_state['paper']
+            exam_list = ft.ListView(expand=True, padding=15, spacing=20)
+            exam_list.controls.append(ft.Text("📝 答题区", size=20, weight=ft.FontWeight.BOLD, color="blue"))
+            
+            for idx, q in enumerate(paper):
+                q_id = q['id']
+                score = exam_state['config'][q['type']]['score']
+                q_col = ft.Column([
+                    ft.Text("第 " + str(idx+1) + " 题 (" + q['type'] + " - " + str(score) + "分)", weight=ft.FontWeight.BOLD), 
+                    ft.Text(q['question'], size=16)
+                ])
+                
+                def make_record_ans(qid):
+                    return lambda e: exam_state['answers'].update({qid: e.control.value})
+                    
+                def make_record_multi_ans(qid, opt_val):
+                    def on_check_change(e):
+                        ans_list = exam_state['answers'][qid]
+                        if e.control.value:
+                            if opt_val not in ans_list: ans_list.append(opt_val)
+                        else:
+                            if opt_val in ans_list: ans_list.remove(opt_val)
+                    return on_check_change
+
+                if q['type'] in ['单选题', '判断题']: 
+                    opts = q['options'] if q['options'] else ["对", "错"]
+                    q_col.controls.append(ft.RadioGroup(
+                        content=ft.Column([ft.Radio(value=opt, label=opt) for opt in opts]), 
+                        on_change=make_record_ans(q_id)
+                    ))
+                elif q['type'] == '多选题': 
+                    for opt in q['options']: 
+                        q_col.controls.append(ft.Checkbox(label=opt, on_change=make_record_multi_ans(q_id, opt)))
+                elif q['type'] == '填空题': 
+                    q_col.controls.append(ft.TextField(hint_text="输入答案", on_change=make_record_ans(q_id)))
+                    
+                exam_list.controls.append(ft.Card(content=ft.Container(padding=15, content=q_col), elevation=1))
+
+            exam_list.controls.append(ft.ElevatedButton("📥 确认交卷", on_click=lambda e: show_exam_result(), height=50, bgcolor="red", color="white"))
+            content_area.controls.append(exam_list)
+            page.update()
+
+        def show_exam_result():
+            content_area.controls.clear()
+            paper = exam_state['paper']
+            obj_score, total_obj, total_sub = 0, 0, 0
+            
+            for q in paper:
+                score_per = exam_state['config'][q['type']]['score']
+                if q['type'] in ['单选题', '多选题', '判断题']:
+                    total_obj += score_per
+                    
+                    std_ans = ""
+                    raw_ans_field = q['answer'].upper()
+                    
+                    clean_ans = raw_ans_field.replace('正确答案', '').replace('答案', '').replace(':', '').replace('：', '').strip()
+                    for char in clean_ans:
+                        if char in ['A', 'B', 'C', 'D', 'E', 'F', '对', '错']:
+                            std_ans += char
+                    std_ans = std_ans.replace('√', '对').replace('×', '错')
+
+                    user_ans = exam_state['answers'].get(q['id'])
+                    user_extracted = ""
+                    if user_ans:
+                        if q['type'] == '单选题': 
+                            if len(user_ans) > 0: user_extracted = user_ans[0]
+                        elif q['type'] == '多选题': 
+                            letters = []
+                            for opt in user_ans:
+                                if len(opt) > 0 and opt[0] in ['A', 'B', 'C', 'D', 'E', 'F']:
+                                    letters.append(opt[0])
+                            letters.sort()  
+                            user_extracted = "".join(letters)
+                        elif q['type'] == '判断题': 
+                            user_extracted = user_ans
+                            
+                    if user_extracted == std_ans and std_ans != "": 
+                        obj_score += score_per
+                else: 
+                    total_sub += score_per
+
+            res_list = ft.ListView(expand=True, padding=15, spacing=15)
+            res_list.controls.append(ft.Card(color="blue", content=ft.Container(padding=20, content=ft.Column([
+                ft.Text("🏁 考 试 结 束", size=24, weight=ft.FontWeight.BOLD, color="white"), 
+                ft.Text("客观题得分: " + str(obj_score) + " / " + str(total_obj), size=18, color="white"), 
+                ft.Text("主观题满分: " + str(total_sub), size=18, color="white")
+            ]))))
+            
+            for idx, q in enumerate(paper):
+                user_ans = exam_state['answers'].get(q['id'], "")
+                if isinstance(user_ans, list):
+                    user_ans.sort()
+                    user_str = " | ".join(user_ans)
+                else:
+                    user_str = user_ans
+                    
+                res_list.controls.append(ft.Card(content=ft.Container(padding=15, content=ft.Column([
+                    ft.Text("第 " + str(idx+1) + " 题 (" + q['type'] + ")", weight=ft.FontWeight.BOLD), 
+                    ft.Text(q['question']), 
+                    ft.Text("📝 你的作答: " + (user_str if user_str else '未作答'), color="blue"), 
+                    ft.Text("✅ " + q['answer'], color="green", weight=ft.FontWeight.BOLD)
+                ]))))
+                
+            res_list.controls.append(ft.ElevatedButton("🔙 返回重新生成", on_click=lambda e: show_exam_setup(), height=50))
+            content_area.controls.append(res_list)
+            page.update()
+
+        def on_nav_change(e):
+            idx = e.control.selected_index
+            if idx == 0: show_global_bank()
+            elif idx == 1: show_chapter_bank()
+            elif idx == 2: show_search()
+            elif idx == 3: show_favorites()
+            elif idx == 4: show_exam_setup()
+
+        page.navigation_bar = ft.NavigationBar(
+            destinations=[
+                ft.NavigationBarDestination(icon="menu_book", label="全局"),
+                ft.NavigationBarDestination(icon="folder", label="章节"),
+                ft.NavigationBarDestination(icon="search", label="检索"),
+                ft.NavigationBarDestination(icon="star", label="收藏"),
+                ft.NavigationBarDestination(icon="quiz", label="模拟考"),
+            ],
+            on_change=on_nav_change
+        )
+
+        page.add(content_area)
+        show_global_bank()
+
+    except Exception as e:
+        error_details = traceback.format_exc()
+        page.controls.clear()
+        page.add(ft.AppBar(title=ft.Text("⚠️ 启动保护模式", color="white"), bgcolor="red"), ft.Container(padding=20, content=ft.Column([ft.Text("糟糕！应用初始化遇到错误：", weight=ft.FontWeight.BOLD, size=18), ft.Container(padding=10, bgcolor="#eeeeee", border_radius=5, content=ft.Text(error_details, size=12, selectable=True, color="black"))], scroll=ft.ScrollMode.AUTO)))
+    page.update()
+
+ft.app(target=main)
