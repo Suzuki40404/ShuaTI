@@ -16,7 +16,7 @@ def main(page: ft.Page):
 
         # --- 核心修改：网页专供版，直接读取，切除所有 os 路径判断 ---
         def load_built_in_banks():
-            path = "assets/bank.txt"
+            path = "bank.txt"
             
             try:
                 with open(path, 'r', encoding='utf-8') as f:
