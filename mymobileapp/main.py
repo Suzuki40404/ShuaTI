@@ -1,9 +1,7 @@
 import flet as ft
-import os
 import re
 import random
 import traceback
-# 注意：这里已经彻底删除了 import docx，永远告别底层库冲突！
 
 def main(page: ft.Page):
     try:
@@ -16,69 +14,61 @@ def main(page: ft.Page):
         favorites = {}
         exam_state = {"paper": [], "config": {}, "answers": {}, "marked": {}}
 
-        # --- 核心修改：改为读取无任何兼容问题的 txt 纯文本 ---
+        # --- 核心修改：网页专供版，直接读取，切除所有 os 路径判断 ---
         def load_built_in_banks():
-            assets_dir = "assets"
+            path = "assets/bank.txt"
             
-            if not os.path.exists(assets_dir):
-                raise Exception(f"未找到 assets 文件夹！当前目录: {os.getcwd()}")
-            
-            # 只寻找 .txt 文件
-            files = [f for f in os.listdir(assets_dir) if f.endswith(".txt")]
-            if not files:
-                raise Exception(f"assets 文件夹内没有找到任何 .txt 题库！")
-            
-            for file in files:
-                path = os.path.join(assets_dir, file)
-                
-                # 使用原生 open 函数读取，安卓 100% 完美兼容
+            try:
                 with open(path, 'r', encoding='utf-8') as f:
                     text_lines = [line.strip() for line in f.readlines() if line.strip()]
-                
-                current_chap = "未分类导言"
-                current_q, q_type = None, None
-                tags = ["导论", "第一章", "第二章", "第三章", "第四章", "第五章", "第六章", "第七章", "第八章", "第九章", "第十章", "第十一章", "第十二章"]
+            except Exception as e:
+                # 如果文件没找到，直接触发最新版的大写 Colors 红屏
+                raise Exception(f"读取题库失败！请确认 assets 目录下是否有 bank.txt，且为 UTF-8 编码。底层报错: {str(e)}")
+            
+            current_chap = "未分类导言"
+            current_q, q_type = None, None
+            tags = ["导论", "第一章", "第二章", "第三章", "第四章", "第五章", "第六章", "第七章", "第八章", "第九章", "第十章", "第十一章", "第十二章"]
 
-                for line in text_lines:
-                    if line in tags or re.match(r'^第[一二三四五六七八九十]+章$', line):
-                        current_chap = line
-                        if current_chap not in db['chapters']: 
-                            db['chapters'][current_chap] = {'单选题': [], '多选题': [], '填空题': [], '判断题': []}
-                        continue
-
-                    m = re.match(r'^\d+\.\s*[（\(](单选题|多选题|填空题|判断题)[）\)]\s*(.*)', line)
-                    if m:
-                        if current_q and q_type:
-                            if current_chap not in db['chapters']: 
-                                db['chapters'][current_chap] = {'单选题': [], '多选题': [], '填空题': [], '判断题': []}
-                            db['chapters'][current_chap][q_type].append(current_q)
-                            db['all'][q_type].append(current_q)
-                        q_type = m.group(1)
-                        current_q = {'id': f"{current_chap}_{q_type}_{len(db['all'][q_type])}", 'question': line, 'options': [], 'answer': '', 'chapter': current_chap, 'type': q_type}
-                    elif current_q:
-                        if line.startswith('正确答案') or line.startswith('答案'): 
-                            current_q['answer'] = line
-                        elif re.match(r'^[A-Z][\.．、]', line): 
-                            current_q['options'].append(line)
-                        elif line.startswith('(1)') or line.startswith('（1）'): 
-                            current_q['answer'] += f"\n{line}"
-                        else:
-                            if not current_q['options'] and not current_q['answer']: 
-                                current_q['question'] += f"\n{line}"
-                                
-                if current_q and q_type:
+            for line in text_lines:
+                if line in tags or re.match(r'^第[一二三四五六七八九十]+章$', line):
+                    current_chap = line
                     if current_chap not in db['chapters']: 
                         db['chapters'][current_chap] = {'单选题': [], '多选题': [], '填空题': [], '判断题': []}
-                    db['chapters'][current_chap][q_type].append(current_q)
-                    db['all'][q_type].append(current_q)
+                    continue
+
+                m = re.match(r'^\d+\.\s*[（\(](单选题|多选题|填空题|判断题)[）\)]\s*(.*)', line)
+                if m:
+                    if current_q and q_type:
+                        if current_chap not in db['chapters']: 
+                            db['chapters'][current_chap] = {'单选题': [], '多选题': [], '填空题': [], '判断题': []}
+                        db['chapters'][current_chap][q_type].append(current_q)
+                        db['all'][q_type].append(current_q)
+                    q_type = m.group(1)
+                    current_q = {'id': f"{current_chap}_{q_type}_{len(db['all'][q_type])}", 'question': line, 'options': [], 'answer': '', 'chapter': current_chap, 'type': q_type}
+                elif current_q:
+                    if line.startswith('正确答案') or line.startswith('答案'): 
+                        current_q['answer'] = line
+                    elif re.match(r'^[A-Z][\.．、]', line): 
+                        current_q['options'].append(line)
+                    elif line.startswith('(1)') or line.startswith('（1）'): 
+                        current_q['answer'] += f"\n{line}"
+                    else:
+                        if not current_q['options'] and not current_q['answer']: 
+                            current_q['question'] += f"\n{line}"
+                            
+            if current_q and q_type:
+                if current_chap not in db['chapters']: 
+                    db['chapters'][current_chap] = {'单选题': [], '多选题': [], '填空题': [], '判断题': []}
+                db['chapters'][current_chap][q_type].append(current_q)
+                db['all'][q_type].append(current_q)
 
         load_built_in_banks()
 
-        # ========== 以下全部是你原本的 UI 代码，完全不用动 ==========
+        # --- 修复所有的 Colors 和 Icons 大小写问题 ---
         page.appbar = ft.AppBar(
             title=ft.Text("📚 题库刷", weight=ft.FontWeight.BOLD),
             center_title=True,
-            bgcolor=ft.colors.SURFACE_VARIANT,
+            bgcolor=ft.Colors.SURFACE_VARIANT,
         )
 
         content_area = ft.Column(expand=True, scroll=ft.ScrollMode.AUTO)
@@ -86,19 +76,19 @@ def main(page: ft.Page):
         def create_question_card(q):
             is_fav = q['id'] in favorites
             fav_btn = ft.IconButton(
-                icon=ft.icons.STAR if is_fav else ft.icons.STAR_BORDER,
-                icon_color=ft.colors.AMBER if is_fav else ft.colors.GREY,
+                icon=ft.Icons.STAR if is_fav else ft.Icons.STAR_BORDER,
+                icon_color=ft.Colors.AMBER if is_fav else ft.Colors.GREY,
                 on_click=lambda e, q=q: toggle_fav(e, q)
             )
             
             def toggle_fav(e, q):
                 if q['id'] in favorites: del favorites[q['id']]
                 else: favorites[q['id']] = q
-                e.control.icon = ft.icons.STAR if q['id'] in favorites else ft.icons.STAR_BORDER
-                e.control.icon_color = ft.colors.AMBER if q['id'] in favorites else ft.colors.GREY
+                e.control.icon = ft.Icons.STAR if q['id'] in favorites else ft.Icons.STAR_BORDER
+                e.control.icon_color = ft.Colors.AMBER if q['id'] in favorites else ft.Colors.GREY
                 page.update()
 
-            ans_text = ft.Text(q['answer'], color=ft.colors.GREEN, visible=False, weight=ft.FontWeight.BOLD)
+            ans_text = ft.Text(q['answer'], color=ft.Colors.GREEN, visible=False, weight=ft.FontWeight.BOLD)
             def toggle_ans(e):
                 ans_text.visible = not ans_text.visible
                 page.update()
@@ -109,7 +99,7 @@ def main(page: ft.Page):
                 content=ft.Container(
                     padding=15,
                     content=ft.Column([
-                        ft.Text(f"[{q['chapter']}]", size=12, color=ft.colors.GREY),
+                        ft.Text(f"[{q['chapter']}]", size=12, color=ft.Colors.GREY),
                         ft.Text(q['question'], weight=ft.FontWeight.BOLD, size=16),
                         options_col,
                         ft.Row([fav_btn, ft.TextButton("👁️ 查看答案", on_click=toggle_ans)], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
@@ -189,7 +179,7 @@ def main(page: ft.Page):
                     for t in db['all']: results.extend([q for q in db['all'][t] if match_kw(q)])
                 else:
                     for t in db['chapters'][scope]: results.extend([q for q in db['chapters'][scope][t] if match_kw(q)])
-                if not results: results_list.controls.append(ft.Text("没有找到匹配的题目~", color=ft.colors.GREY))
+                if not results: results_list.controls.append(ft.Text("没有找到匹配的题目~", color=ft.Colors.GREY))
                 else:
                     for q in results: results_list.controls.append(create_question_card(q))
                 page.update()
@@ -203,7 +193,7 @@ def main(page: ft.Page):
             if not favorites: content_area.controls.append(ft.Container(ft.Text("收藏本为空，快去刷题吧！", size=16), alignment=ft.alignment.center, padding=50))
             else:
                 list_view = ft.ListView(expand=True, padding=10)
-                list_view.controls.append(ft.Text(f"当前共收藏 {len(favorites)} 题", weight=ft.FontWeight.BOLD, color=ft.colors.BLUE))
+                list_view.controls.append(ft.Text(f"当前共收藏 {len(favorites)} 题", weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE))
                 for q in list(favorites.values()): list_view.controls.append(create_question_card(q))
                 content_area.controls.append(list_view)
             page.update()
@@ -241,7 +231,7 @@ def main(page: ft.Page):
             content_area.controls.clear()
             paper = exam_state['paper']
             exam_list = ft.ListView(expand=True, padding=15, spacing=20)
-            exam_list.controls.append(ft.Text("📝 答题区", size=20, weight=ft.FontWeight.BOLD, color=ft.colors.BLUE))
+            exam_list.controls.append(ft.Text("📝 答题区", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE))
             
             for idx, q in enumerate(paper):
                 q_id, score = q['id'], exam_state['config'][q['type']]['score']
@@ -260,7 +250,7 @@ def main(page: ft.Page):
                     
                 exam_list.controls.append(ft.Card(content=ft.Container(padding=15, content=q_col), elevation=1))
 
-            exam_list.controls.append(ft.ElevatedButton("📥 确认交卷", on_click=lambda e: show_exam_result(), height=50, bgcolor=ft.colors.ERROR, color=ft.colors.WHITE))
+            exam_list.controls.append(ft.ElevatedButton("📥 确认交卷", on_click=lambda e: show_exam_result(), height=50, bgcolor=ft.Colors.ERROR, color=ft.Colors.WHITE))
             content_area.controls.append(exam_list)
             page.update()
 
@@ -285,12 +275,12 @@ def main(page: ft.Page):
                 else: total_sub += score_per
 
             res_list = ft.ListView(expand=True, padding=15, spacing=15)
-            res_list.controls.append(ft.Card(color=ft.colors.BLUE_700, content=ft.Container(padding=20, content=ft.Column([ft.Text("🏁 考 试 结 束", size=24, weight=ft.FontWeight.BOLD, color=ft.colors.WHITE), ft.Text(f"客观题得分: {obj_score:g} / {total_obj:g}", size=18, color=ft.colors.WHITE), ft.Text(f"主观题满分: {total_sub:g}", size=18, color=ft.colors.WHITE70)]))))
+            res_list.controls.append(ft.Card(color=ft.Colors.BLUE_700, content=ft.Container(padding=20, content=ft.Column([ft.Text("🏁 考 试 结 束", size=24, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE), ft.Text(f"客观题得分: {obj_score:g} / {total_obj:g}", size=18, color=ft.Colors.WHITE), ft.Text(f"主观题满分: {total_sub:g}", size=18, color=ft.Colors.WHITE70)]))))
             
             for idx, q in enumerate(paper):
                 user_ans = exam_state['answers'].get(q['id'], "")
                 user_str = " | ".join(sorted(user_ans)) if isinstance(user_ans, list) else user_ans
-                res_list.controls.append(ft.Card(content=ft.Container(padding=15, content=ft.Column([ft.Text(f"第 {idx+1} 题 ({q['type']})", weight=ft.FontWeight.BOLD), ft.Text(q['question']), ft.Text(f"📝 你的作答: {user_str if user_str else '未作答'}", color=ft.colors.BLUE), ft.Text(f"✅ {q['answer']}", color=ft.colors.GREEN, weight=ft.FontWeight.BOLD)]))))
+                res_list.controls.append(ft.Card(content=ft.Container(padding=15, content=ft.Column([ft.Text(f"第 {idx+1} 题 ({q['type']})", weight=ft.FontWeight.BOLD), ft.Text(q['question']), ft.Text(f"📝 你的作答: {user_str if user_str else '未作答'}", color=ft.Colors.BLUE), ft.Text(f"✅ {q['answer']}", color=ft.Colors.GREEN, weight=ft.FontWeight.BOLD)]))))
                 
             res_list.controls.append(ft.ElevatedButton("🔙 返回重新生成", on_click=lambda e: show_exam_setup(), height=50))
             content_area.controls.append(res_list)
@@ -306,11 +296,11 @@ def main(page: ft.Page):
 
         page.navigation_bar = ft.NavigationBar(
             destinations=[
-                ft.NavigationDestination(icon=ft.icons.MENU_BOOK, label="全局"),
-                ft.NavigationDestination(icon=ft.icons.FOLDER, label="章节"),
-                ft.NavigationDestination(icon=ft.icons.SEARCH, label="检索"),
-                ft.NavigationDestination(icon=ft.icons.STAR, label="收藏"),
-                ft.NavigationDestination(icon=ft.icons.QUIZ, label="模拟考"),
+                ft.NavigationDestination(icon=ft.Icons.MENU_BOOK, label="全局"),
+                ft.NavigationDestination(icon=ft.Icons.FOLDER, label="章节"),
+                ft.NavigationDestination(icon=ft.Icons.SEARCH, label="检索"),
+                ft.NavigationDestination(icon=ft.Icons.STAR, label="收藏"),
+                ft.NavigationDestination(icon=ft.Icons.QUIZ, label="模拟考"),
             ],
             on_change=on_nav_change
         )
@@ -321,7 +311,8 @@ def main(page: ft.Page):
     except Exception as e:
         error_details = traceback.format_exc()
         page.controls.clear()
-        page.add(ft.AppBar(title=ft.Text("⚠️ 启动保护模式", color=ft.colors.WHITE), bgcolor=ft.colors.RED), ft.Container(padding=20, content=ft.Column([ft.Text("糟糕！应用初始化遇到错误：", weight=ft.FontWeight.BOLD, size=18), ft.Container(padding=10, bgcolor=ft.colors.GREY_200, border_radius=5, content=ft.Text(error_details, size=12, selectable=True, color=ft.colors.BLACK))], scroll=ft.ScrollMode.AUTO)))
+        # 这里也同步修复了 Colors
+        page.add(ft.AppBar(title=ft.Text("⚠️ 启动保护模式", color=ft.Colors.WHITE), bgcolor=ft.Colors.RED), ft.Container(padding=20, content=ft.Column([ft.Text("糟糕！应用初始化遇到错误：", weight=ft.FontWeight.BOLD, size=18), ft.Container(padding=10, bgcolor=ft.Colors.GREY_200, border_radius=5, content=ft.Text(error_details, size=12, selectable=True, color=ft.Colors.BLACK))], scroll=ft.ScrollMode.AUTO)))
     page.update()
 
 ft.app(target=main, assets_dir="assets")
